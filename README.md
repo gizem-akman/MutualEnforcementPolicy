@@ -1,4 +1,4 @@
-## Codes of the ProVerif model of Mutual Enforcement Policy (MPE) Protocols
+## ProVerif implementation of Mutual Enforcement Policy (MPE) Protocols
 
 The ProVerif model of the protocols, proposed in the paper with title _"Policy Enforcement Protocols with Split Keys"_, can be found in this repository. This paper is submitted to MIST 2025.
 
