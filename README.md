@@ -10,15 +10,23 @@ We have the following ProVerif models:
 2. *PolicyCheck_MAC.pv* - MAC-based Mutual Policy Enforcement Protocol (MPE-MAC)
 
 3. *MPE-SIGN-compromise* folder
+   
   3.1.  *PolicyCheck_SIGN_compromiseAlice1.pv* - MPE-SIGN protocol when Alice1 is compromised
+  
   3.2.  *PolicyCheck_SIGN_compromiseAlice2.pv* - MPE-SIGN protocol when Alice2 is compromised
+  
   3.3.  *PolicyCheck_SIGN_compromiseBob1.pv* - MPE-SIGN protocol when Bob1 is compromised
+  
   3.4.  *PolicyCheck_SIGN_compromiseBob2.pv* - MPE-SIGN protocol when Bob2 is compromised
 
-4. *MPE-Mc-compromise* folder
+5. *MPE-Mc-compromise* folder
+   
   4.1.  *PolicyCheck_MAC_compromiseAlice1.pv* - MPE-MAC protocol when Alice1 is compromised
+   
   4.2.  *PolicyCheck_MAC_compromiseAlice2.pv* - MPE-MAC protocol when Alice2 is compromised
+  
   4.3.  *PolicyCheck_MAC_compromiseBob1.pv* - MPE-MAC protocol when Bob1 is compromised
+  
   4.4.  *PolicyCheck_MAC_compromiseBob2.pv* - MPE-MAC protocol when Bob2 is compromised
 
 # ProVerif 
