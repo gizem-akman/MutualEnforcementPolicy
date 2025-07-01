@@ -1,0 +1,392 @@
+free chAA:channel.
+free chAB:channel.
+free chBB:channel.
+free internet:channel.
+
+
+type skey.
+type pkey.
+type host.
+type sskey.
+type spkey.
+type key.
+type coins.
+
+(*Assumptions:
+
+- Alice1 and Bob1 already know each other.
+- Alice1 and Alice2 have the certificate of Bob, and Bob1 and Bob2 have the certificate of Alice.
+- The communication is done between these parties, they do not need to provide certificate to prove themselves.
+
+*) 
+
+(*Signature*)
+fun spk(skey):pkey.
+
+fun splitKey(skey,skey):skey. (* sk_a1 and sk_a2 => sk_a *)
+fun splitSignature(bitstring,skey):bitstring.
+fun reconstSignature(bitstring,bitstring):bitstring.
+
+reduc forall m:bitstring,k1:skey,k2:skey; checkSignature(reconstSignature(splitSignature(m,k1),splitSignature(m,k2)),spk(splitKey(k1,k2)))=m.
+
+ 
+(*Certificates*)
+fun makecert(host,pkey,skey):bitstring.
+reduc forall x:host, y:pkey, z:skey; checkCert(makecert(x,y,z),spk(z))=(x,y).
+
+fun eq(bitstring,bitstring):bool
+    reduc forall x:bitstring; eq(x,x) = true
+    otherwise forall x:bitstring, y:bitstring; eq(x,y) = false.
+
+(*AEAD*) (*Authenticated encryption*)
+fun internal_senc(bitstring,key,coins):bitstring.
+reduc forall m:bitstring,k:key,r:coins; sdec(internal_senc(m,k,r),k)=m.
+letfun senc(m:bitstring,k:key)=new r:coins; internal_senc(m,k,r).
+
+(*MAC*)
+fun MAC(bitstring,key):bitstring.
+
+(*Events*)
+
+event Alice1sendM1(host,bitstring).
+
+event Bob1receiveM1(host,bitstring).
+
+event Bob1sendR2(host,bitstring).
+event Bob2sendR4(host,bitstring).
+
+event Bob1sendM2(host,bitstring).
+
+event Alice1receiveM2(host,bitstring).
+event Alice1sendM(host,bitstring).
+
+event Alice2receiveM(host,bitstring).
+event Alice2sendS1pp(host,bitstring).
+
+event Alice1receiveS1pp(host,bitstring).
+event Alice1signS1(host,bitstring).
+event Alice1verifyS1(host,host,bitstring,bitstring).
+event Alice1sendS1(host,host,bitstring,bitstring).
+
+event Bob1receiveS1(host,bitstring).
+event Bob1verifyS1(host,host,bitstring,bitstring).
+event Bob1sendS1(host,host,bitstring,bitstring).
+
+event Bob2receiveS1(host,bitstring).
+event Bob2verifyS1(host,bitstring).
+
+event Bob2verifyBob1(host,bitstring).
+
+event Bob2FINISHED(host,host,bitstring,bitstring).
+
+event Bob1receiveS2pp(host,bitstring).
+event Bob1signS2(host,bitstring).
+event Bob1verifyS2(host,host,bitstring,bitstring).
+event Bob1FINISHED(host,host,bitstring,bitstring).
+
+event Alice1receiveS2(host,bitstring).
+event Alice1verifyS2(host,host,bitstring,bitstring).
+event Alice1FINISHED(host,host,bitstring,bitstring).
+
+event Alice2receiveS2(host,bitstring).
+event Alice2verifyS2(host,bitstring).
+event Alice2FINISHED(host,host,bitstring,bitstring).
+
+event Alice1START(host,host,bitstring,bitstring).
+event Alice2START(host,host,bitstring,bitstring).
+event Bob1START(host,host,bitstring,bitstring).
+event Bob2START(host,host,bitstring,bitstring).
+
+event compromise(host).
+event hostPair(host,host).
+
+event Alice2PolicyCheck(host,host,bitstring,bitstring).
+event Bob2PolicyCheck(host,host,bitstring,bitstring).
+
+event Bob2sentS2(host,host,bitstring,bitstring).
+
+
+(* Reachability *)
+
+query x:host,y:host,m:bitstring,n:bitstring; event(Alice1START(x,y,m,n)).
+query x:host,y:host,m:bitstring,n:bitstring; event(Alice2START(x,y,m,n)).
+query x:host,y:host,m:bitstring,n:bitstring; event(Bob1START(x,y,m,n)).
+query x:host,y:host,m:bitstring,n:bitstring; event(Bob2START(x,y,m,n)). 
+
+query x:host,y:host,m:bitstring,n:bitstring; event(Alice1sendS1(x,y,m,n)).
+query x:host,y:host,m:bitstring,n:bitstring; event(Alice1verifyS2(x,y,m,n)).
+query x:host,y:host,m:bitstring,n:bitstring; event(Bob1sendS1(x,y,m,n)).
+
+query x:host,y:host,m:bitstring,n:bitstring; event(Alice1FINISHED(x,y,m,n)).
+query x:host,y:host,m:bitstring,n:bitstring; event(Alice2FINISHED(x,y,m,n)).
+query x:host,y:host,m:bitstring,n:bitstring; event(Bob1FINISHED(x,y,m,n)).
+query x:host,y:host,m:bitstring,n:bitstring; event(Bob2FINISHED(x,y,m,n)).
+
+query x:host,y:host,m:bitstring,n:bitstring; event(Alice2PolicyCheck(x,y,m,n)).
+query x:host,y:host,m:bitstring,n:bitstring; event(Bob2PolicyCheck(x,y,m,n)).
+
+
+(*Authentication and replay protection queries*)
+
+query x:host,a1:host,a2:host,b1:host,b2:host,m1:bitstring,m2:bitstring; 
+inj-event(Bob1FINISHED(a1,b1,m1,m2)) ==> (inj-event(Alice1sendS1(a1,b1,m1,m2)) && inj-event(Alice2START(a2,a1,m1,m2)) && inj-event(Bob2FINISHED(b2,b1,m1,m2))&& inj-event(Alice2PolicyCheck(a2,a1,m1,m2))&& inj-event(Bob2PolicyCheck(b2,b1,m1,m2))).
+
+query x:host,a1:host,a2:host,b1:host,b2:host,m1:bitstring,m2:bitstring; 
+inj-event(Alice1FINISHED(a1,b1,m1,m2))==> (inj-event(Alice2FINISHED(a2,a1,m1,m2)) && inj-event(Bob2FINISHED(b2,b1,m1,m2)) && inj-event(Alice2PolicyCheck(a2,a1,m1,m2))&& inj-event(Bob2PolicyCheck(b2,b1,m1,m2))).
+
+query x:host,a1:host,a2:host,b1:host,b2:host,m1:bitstring,m2:bitstring; 
+inj-event(Alice2FINISHED(a2,a1,m1,m2)) ==> inj-event(Alice1verifyS2(a1,b1,m1,m2)) && inj-event(Bob2FINISHED(b2,b1,m1,m2))&& inj-event(Alice2PolicyCheck(a2,a1,m1,m2))&& inj-event(Bob2PolicyCheck(b2,b1,m1,m2)).
+
+query x:host,a1:host,a2:host,b1:host,b2:host,m1:bitstring,m2:bitstring; 
+inj-event(Bob2FINISHED(b2,b1,m1,m2)) ==> inj-event(Alice1sendS1(a1,b1,m1,m2)) && inj-event(Alice2START(a2,a1,m1,m2)) && inj-event(Alice2PolicyCheck(a2,a1,m1,m2))&& inj-event(Bob2PolicyCheck(b2,b1,m1,m2)). 
+
+
+let processAlice1(Alice1:host,skA1:skey,certA:bitstring,certB:bitstring,K:key,Ka:key,pkCA:pkey,Success:bitstring)=
+
+    let(=Alice1,pkA:pkey)=checkCert(certA,pkCA) in
+    let(Bob1:host,pkB:pkey)=checkCert(certB,pkCA) in
+
+(*-----USAGE-----*)
+
+(*1*)
+(*Create message and send to Bob1*)
+    new M1:bitstring;
+    new r1:bitstring;
+    event Alice1sendM1(Alice1,M1);
+    out(chAB,(M1,r1,MAC((M1,r1),K)));
+
+(*--------*)
+
+(*4*)
+(*Receive M2 from Bob1*)
+    in(chAB,(M2:bitstring,r2:bitstring,r4:bitstring,E2:bitstring));
+    if MAC((M1,r1,M2,r2,r4),K)=E2 then
+    event Alice1receiveM2(Alice1,M2);
+    event Alice1START(Alice1,Bob1,M1,M2);
+
+(*5*)
+(*Send M1 and M2 to Alice2*)
+    event Alice1sendM(Alice1,M1);
+    out(chAA,(M1,M2,r1,r2,r4,MAC((M1,M2,r1,r2,r4),Ka)));
+    
+(*-------*)
+
+(*7*)
+(*Receieves S from Alice2*)
+    in(chAA,(S1pp:bitstring,r3:bitstring,Z2:bitstring));
+    if MAC((S1pp,r3),Ka)=Z2 then
+    event Alice1receiveS1pp(Alice1,S1pp);
+
+(*8*)
+(*Sign messages*)
+    let S1p=splitSignature((M1,M2,r1,r2,r3,r4),skA1) in
+    let S1=reconstSignature(S1p,S1pp) in
+    event Alice1signS1(Alice1,S1);
+
+(*Verifies the signature*)
+    let (M1p:bitstring,M2p:bitstring,=r1,=r2,=r3,=r4)=checkSignature(S1,pkA) in
+    if eq(M1,M1p) && eq(M2,M2p) then event Alice1verifyS1(Alice1,Bob1,M1,M2);
+
+(*9*)
+(*Sends signature to Bob1*)
+    event Alice1sendS1(Alice1,Bob1,M1,M2);
+    out(chAB,(S1,r3,MAC((S1,r3),K)));
+
+(*---------*)
+
+(*15*)
+(*Receives encrypted S2 from Bob1*)
+    in(chAB,(S2:bitstring,E4:bitstring));
+    if MAC(S2,K)=E4 then
+    event Alice1receiveS2(Alice1,S2);
+
+(*16*)
+(*Verifies signature of bob*)
+    let (M1pp:bitstring,M2pp:bitstring,=r1,=r2,=r3,=r4)=checkSignature(S2,pkB) in 
+    if M1pp=M1 && M2pp=M2 then event Alice1verifyS2(Alice1,Bob1,M1,M2);
+
+(*17*)
+(*Encrypts H2 and sends it to Alice2*)
+    out(chAA,(S1,S2,MAC((S1,S2),Ka)));
+
+(*19*)
+    in(chAA,(success:bitstring));
+    if MAC((Success,M1,r1,M2,r2),Ka)=success then
+    event Alice1FINISHED(Alice1,Bob1,M1,M2).
+
+
+let processAlice2(Alice2:host,skA2:skey,certA:bitstring,certB:bitstring,Ka:key,pkCA:pkey,Success:bitstring)=
+
+    let(Alice1:host,pkA:pkey)=checkCert(certA,pkCA) in
+    let(Bob1:host,pkB:pkey)=checkCert(certB,pkCA) in
+
+(*5*)
+(*Receives encrypted M1 and M2 from Alice1 and decrypts them*)
+    in(chAA,(M1:bitstring,M2:bitstring,r1:bitstring,r2:bitstring,r4:bitstring,Z1:bitstring));
+    if MAC((M1,M2,r1,r2,r4),Ka)=Z1 then
+    event Alice2receiveM(Alice2,M1);
+
+(*6*) 
+(*Policy Check is done*)
+    event Alice2PolicyCheck(Alice2,Alice1,M1,M2);
+
+(*Signs and verifies the split signature*)
+    new r3:bitstring;
+    let S1pp=splitSignature((M1,M2,r1,r2,r3,r4),skA2) in
+
+(*7*)
+(*Generates H1 and sends it to Alice1*)
+    event Alice2sendS1pp(Alice2,S1pp);
+    event Alice2START(Alice2,Alice1,M1,M2);
+    out(chAA,(S1pp,r3,MAC((S1pp,r3),Ka)));
+
+(*---------*)
+
+(*17*)
+(*Receives encrypted S2 from Alice1*)
+    in(chAA,(S1:bitstring,S2:bitstring,Z3:bitstring));
+    if MAC((S1,S2),Ka)=Z3 then
+    event Alice2receiveS2(Alice2,S2);
+
+(*18*)
+(*Verifies S2*)
+    let (M1pp:bitstring,M2pp:bitstring,=r1,=r2,=r3,=r4)=checkSignature(S2,pkB) in
+    if M1pp=M1 && M2pp=M2 then event Alice2verifyS2(Alice2,S2);
+    
+    let (M1p:bitstring,M2p:bitstring,=r1,=r2,=r3,=r4)=checkSignature(S1,pkA) in
+    if M1p=M1 && M2p=M2 then 
+
+(*19*)  
+(*Sends encrypted success to Alice1*)
+    event Alice2FINISHED(Alice2,Alice1,M1,M2);
+    out(chAA,MAC((Success,M1,r1,M2,r2),Ka)).
+
+let processBob1(Bob1:host,skB1:skey,certA:bitstring,certB:bitstring,K:key,Kb:key,pkCA:pkey,Success:bitstring)=
+
+    let(Alice1:host,pkA:pkey)=checkCert(certA,pkCA) in
+    let(=Bob1,pkB:pkey)=checkCert(certB,pkCA) in
+
+(*1*)
+(*Receive M1 from Alice1*)
+    in(chAB,(M1:bitstring,r1:bitstring,E1:bitstring));
+    if MAC((M1,r1),K)=E1 then
+    event Bob1receiveM1(Bob1,M1);
+
+(*2-3*)
+(*Exchange randoms with Bob2*)
+    new M2:bitstring;
+    new r2:bitstring;
+    event Bob1START(Alice1,Bob1,M1,M2);
+    event Bob1sendR2(Bob1,r2);
+    out(chBB,r2);
+    in(chBB,r4:bitstring);
+
+(*4*)
+(*Send M2 to Alice1*)
+    event Bob1sendM2(Bob1,M2);
+    out(chAB,(M2,r2,r4,MAC((M1,r1,M2,r2,r4),K)));
+
+(*-------*)
+
+(*9*)
+(*Receives signature*)
+    in(chAB,(S1:bitstring,r3:bitstring,E3:bitstring));
+    if MAC((S1,r3),K)=E3 then
+    event Bob1receiveS1(Bob1,S1);
+
+(*10*)
+(*Verifies Alice signature*)
+    let (M1p:bitstring,M2p:bitstring,=r1,=r2,=r3,=r4)=checkSignature(S1,pkA) in 
+    if M1p=M1 && M2p=M2 then event Bob1verifyS1(Alice1,Bob1,M1,M2);
+
+(*11*)
+(*Forwards S, M1, and M2 to Bob2*)
+    event Bob1sendS1(Alice1,Bob1,M1,M2);
+    out(chBB,(M1,M2,S1,r1,r2,r3,r4,MAC((M1,M2,S1,r1,r2,r3,r4),Kb)));
+
+(*-------*)
+
+(*13*)
+(*Receives signature and success from Bob2*)
+    in(chBB,(S2pp:bitstring,W2:bitstring));
+    if MAC((S2pp,Success),Kb)=W2 then
+    event Bob1receiveS2pp(Bob1,S2pp);
+
+(*14*)
+(*Retrieves S2 and Success*)
+    let S2p=splitSignature((M1,M2,r1,r2,r3,r4),skB1) in
+    let S2=reconstSignature(S2p,S2pp) in
+    event Bob1signS2(Bob1,S2);
+
+(*Verify the signature*)
+    let (M1pp:bitstring,M2pp:bitstring,=r1,=r2,=r3,=r4)=checkSignature(S2,pkB) in 
+    if M1p=M1 && M2p=M2 then event Bob1verifyS2(Alice1,Bob1,M1,M2);
+
+(*15*)
+(*Sends S2 to Alice1*)
+    event Bob1FINISHED(Alice1,Bob1,M1,M2);
+    out(chAB,(S2,MAC(S2,K))).
+
+let processBob2(Bob2:host,skB2:skey,certA:bitstring,certB:bitstring,Kb:key,pkCA:pkey,Success:bitstring)=
+
+    let(Alice1:host,pkA:pkey)=checkCert(certA,pkCA) in
+    let(Bob1:host,pkB:pkey)=checkCert(certB,pkCA) in
+
+(*2-3*)
+(*Exchanges randoms with Bob1*)
+    in(chBB,r2:bitstring);
+    new r4:bitstring;
+    event Bob2sendR4(Bob2,r4);
+    out(chBB,r4);
+
+(*11*)
+(*Receives messages from Bob1*)
+    in(chBB,(M1:bitstring,M2:bitstring,S1:bitstring,r1:bitstring,=r2,r3:bitstring,=r4,W1:bitstring));
+    if MAC((M1,M2,S1,r1,r2,r3,r4),Kb)=W1 then
+    event Bob2START(Bob2,Bob1,M1,M2);
+    event Bob2receiveS1(Bob2,S1);
+
+(*12*)
+(*Policy Check is done*)
+    event Bob2PolicyCheck(Bob2,Bob1,M1,M2);
+
+(*Verify Alice's signature*)
+    let (M1p:bitstring,M2p:bitstring,=r1,=r2,=r3,=r4)=checkSignature(S1,pkA) in
+    if M1p=M1 && M2p=M2 then event Bob2verifyS1(Bob2,S1);
+
+(*Split sign and verify Bob1's signature*)
+    let S2pp=splitSignature((M1,M2,r1,r2,r3,r4),skB2) in
+
+(*13*)
+(*Sends success to Bob1*)
+    event Bob2sentS2(Bob2,Bob1,M1,M2);
+    event Bob2FINISHED(Bob2,Bob1,M1,M2);
+    out(chBB,(S2pp,MAC((S2pp,Success),Kb))).
+   
+process
+    new skCA:skey; let pkCA=spk(skCA) in out(internet,(pkCA));
+    new Success:bitstring;
+
+!(    
+    new Alice1:host; new ska1:skey;     
+    new Alice2:host; new ska2:skey; let pka=spk(splitKey(ska1,ska2)) in
+    event hostPair(Alice1,Alice2);
+    let certA=makecert(Alice1,pka,skCA) in out(internet,(certA));
+    new Bob1:host; new skb1:skey; 
+    new Bob2:host; new skb2:skey; let pkb=spk(splitKey(skb1,skb2)) in
+    event hostPair(Bob1,Bob2);
+    let certB=makecert(Bob1,pkb,skCA) in out(internet,(certB));
+    new K:key; new Ka:key; new Kb:key;
+    
+    !processAlice1(Alice1,ska1,certA,certB,K,Ka,pkCA,Success) | 
+    !processAlice2(Alice2,ska2,certA,certB,Ka,pkCA,Success) | 
+    !processBob1(Bob1,skb1,certA,certB,K,Kb,pkCA,Success)| 
+    !processBob2(Bob2,skb2,certA,certB,Kb,pkCA,Success)
+
+    (* | (event compromise(Alice1); out(internet,(ska1,K,Ka)) ) *)
+    (* | (event compromise(Alice2); out(internet,(ska2,Ka)) ) *)
+    | (event compromise(Bob1); out(internet,(skb1,K,Kb,Success)) )
+    (* | (event compromise(Bob2); out(internet,(skb2,Kb)) ) *)
+
+
+) 
